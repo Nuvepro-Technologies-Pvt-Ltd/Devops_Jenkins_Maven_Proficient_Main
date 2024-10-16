@@ -2,53 +2,48 @@ pipeline {
     agent any
     
     tools {
-        maven 'localMaven'
-    }
-    environment {
-        fname = "Ranjit"
-        lname = "Swain"
-        version = "1.2"
-        system = "Dev"
+        maven 'Maven 3.9.9' // Ensure this matches the Maven version configured in Jenkins
     }
 
-stages{
-        stage('Build'){
+    stages {
+        stage('Checkout') {
             steps {
-                sh 'mvn clean package'
-            }
-            post {
-                success {
-                    echo 'Archiving the artifacts'
-                    archiveArtifacts artifacts: '**/target/*.war'
-                }
-		failure{
-        		emailext attachLog: true, body: 'Email sent out from Jenkins', subject: '$PROJECT_NAME - Build # $BUILD_NUMBER - $BUILD_STATUS!', to: 'rs.ranjitswain@gmail.com'
-      		}
+                // Clone the Git repository for the current branch
+                git branch: env.BRANCH_NAME, url: 'https://github.com/Nuvepro-Technologies-Pvt-Ltd/Devops_Jenkins_Maven_Proficient_Main.git'
             }
         }
-
-        stage ('Deployments'){
-            parallel{
-                stage ('Deploy to Staging'){
-                    steps {
-                        
-			    echo "This is made by ${env.fname} ${env.lname}"
-                        echo "it's running on ${env.system} and the version is ${env.version}"
-			echo "Deploying to Staging Environment!"
-			    echo "Triggered by github-hook"
-                    }
-                }
-
-                stage ("Deploy to Staging2"){
-                    steps {
-                        echo 'This is just a demo on Production server.'
-                        /*script{
-                            props = readProperties file: 'build.cnf'
-                        }
-                        echo "Current Version ${props['deploy.version']}"*/
-                    }
-                }
+        
+        stage('Build') {
+            steps {
+                // Clean and build the Maven project
+                sh 'mvn clean install'
             }
+        }
+        
+        stage('Test') {
+            steps {
+                // Run the Maven tests
+                sh 'mvn test'
+            }
+        }
+        
+        stage('Package') {
+            steps {
+                // Package the application
+                sh 'mvn package'
+            }
+        }
+    }
+
+    post {
+        success {
+            // Archive the JAR and test results
+            archiveArtifacts artifacts: 'target/*.jar', allowEmptyArchive: true
+            junit '**/target/surefire-reports/*.xml'
+        }
+        always {
+            // Clean up workspace after build
+            cleanWs()
         }
     }
 }
